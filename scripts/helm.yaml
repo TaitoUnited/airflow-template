@@ -1,0 +1,7 @@
+# Here you can configure all your Kubernetes resources with a
+# developer-friendly YAML format
+
+# NOTE: See helm/values.yaml for a list of all service attributes
+# and helm/examples.yaml for some examples.
+
+# TODO

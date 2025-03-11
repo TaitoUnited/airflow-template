@@ -1,0 +1,40 @@
+# Here you can configure all your cloud resources (non-Kubernetes resources)
+# with a cloud-agnostic and developer-friendly YAML format
+
+# NOTE: See terraform/examples.yaml for some examples.
+
+settings:
+  auth:
+    serviceAccounts: # For GCP
+      - name: ${taito_project}-${taito_env}-airflow # For GCP
+        roles: [] # -airflow roles # For GCP
+
+  services:
+    bucket:
+      type: bucket
+      name: ${st_bucket_name}
+      location: ${taito_default_storage_location}
+      storageClass: ${taito_default_storage_class}
+      # Object lifecycle
+      versioningEnabled: true
+      versioningRetainDays: ${taito_default_storage_days}
+      lockRetainDays:
+      transitionRetainDays:
+      transitionStorageClass:
+      autoDeletionRetainDays:
+      # Backup (TODO: implement)
+      backupRetainDays: ${taito_default_storage_backup_days}
+      backupLocation: ${taito_default_storage_backup_location}
+      backupLock:
+      # Cors
+      corsRules:
+        - allowedOrigins: ["https://${taito_domain}"]
+          allowedMethods: ["HEAD", "GET"]
+      # User rights # For GCP
+      admins: # For GCP
+      objectAdmins: # For GCP
+        # TODO: this got removed?
+        - id: serviceAccount:${taito_project}-${taito_env}-airflow@${taito_resource_namespace_id}.iam.gserviceaccount.com # For GCP
+      objectViewers: # For GCP
+
+# END
