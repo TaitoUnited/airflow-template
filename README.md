@@ -18,7 +18,7 @@ Table of contents:
 - [Usage](#usage)
 - [Manually configured settings](#manually-configured-settings)
 - [Conventions](#conventions)
-- [Architecture Overview](#architecture-overview)
+- [Pipeline Overview](#pipeline-overview)
 - [Security](#security)
 
 ## Links
