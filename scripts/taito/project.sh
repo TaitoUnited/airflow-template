@@ -66,9 +66,6 @@ st_bucket_name="$taito_project-$taito_env"
 taito_secrets="
   $db_database_app_secret:random
   $taito_project-$taito_env-redis.password:random
-  $taito_project-$taito_env-session.secret:random
-  $taito_project-$taito_env-example.secret:manual
-  $taito_project-$taito_env-test-user-password.secret:manual
 "
 
 # Secrets for local environment only
@@ -78,10 +75,6 @@ taito_local_secrets="
 # Secrets for non-local environments
 taito_remote_secrets="
   $taito_project-$taito_env-basic-auth.auth:htpasswd-plain
-  $taito_project-$taito_env-scheduler.secret:random
-  $taito_project-$taito_env-server-serviceaccount.key:file
-  $taito_project-$taito_env-storage.accessKeyId:manual
-  $taito_project-$taito_env-storage.secretKey:manual
   $db_database_viewer_secret:random
   ${db_database_mgr_secret}${taito_cicd_secrets_path}:random
   cicd-proxy-serviceaccount.key:read/common
@@ -96,7 +89,6 @@ taito_cicd_secrets="
 # Secrets required by CI/CD tests
 taito_testing_secrets="
   $taito_project-$taito_env-basic-auth.auth
-  $taito_project-$taito_env-test-user-password.secret
 "
 
 # Secret hints and descriptions
