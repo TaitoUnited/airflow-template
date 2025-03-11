@@ -26,16 +26,14 @@ taito_environments="${template_default_environments}"
 
 if [[ ${taito_deployment_platforms} == *"docker"* ]] ||
    [[ ${taito_deployment_platforms} == *"kubernetes"* ]]; then
-  taito_containers=" airflow "
+  taito_containers=" airflow scheduler worker triggerer init cli flower redis "
   if [[ ${taito_env} == "local" ]]; then
     taito_containers="${taito_containers} database "
-  else
-    taito_containers="${taito_containers} playwright"
   fi
 else
-  taito_functions=" server worker "
+  taito_functions=" "
 fi
-taito_static_contents=" admin client www "
+taito_static_contents=" "
 taito_databases=" database "
 taito_networks="default"
 
@@ -113,14 +111,9 @@ taito_secret_hints="
 # 'taito project generate'. Configuration instructions: TODO
 
 link_urls="
-  * admin[:ENV]=$taito_app_url/admin/ Administration GUI (:ENV)
-  * client[:ENV]=$taito_app_url Web application GUI (:ENV)
-  * server[:ENV]=$taito_app_url/api/uptimez Server API status (:ENV)
-  * apidocs[:ENV]=$taito_app_url/api/docs REST API docs (:ENV)
-  * graphql[:ENV]=$taito_app_url/api GraphQL Playground (:ENV)
-  * www[:ENV]=$taito_app_url/docs Website (:ENV)
+  * airflow[:ENV]=$taito_app_url Web application GUI (:ENV)
   * git=https://$taito_vc_repository_url Git repository
-  * uikit=http://localhost:6006 UI kit in Storybook
+  * flower=http://localhost:9998 Flower for administrating Celery
 "
 
 # TODO: Temporary hack for https://github.com/gatsbyjs/gatsby/issues/3721

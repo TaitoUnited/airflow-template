@@ -49,14 +49,20 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider packages you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.10.5}
-  # build: .
+  # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.10.5}
+  build:
+    context: ./airflow
+    dockerfile: ${dockerfile}
+    args:
+      USER_UID: ${taito_host_user_uid}
+  networks:
+    - default
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
-    AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${db_database_app_username}:secret1234@airflow-template-database/${db_database_name}
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${db_database_app_username}:secret1234@airflow-template-database/airflow
+    AIRFLOW__CELERY__BROKER_URL: redis://:@airflow-template-redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
@@ -73,38 +79,49 @@ x-airflow-common:
     # If you want to use it, outcomment it and replace airflow.cfg with the name of your config file
     # AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
   volumes:
-    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
-    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
-    - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
-    - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
-  user: "${AIRFLOW_UID:-50000}:0"
+    - airflow/dags:/opt/airflow/dags
+    - airflow/logs:/opt/airflow/logs
+    - airflow/config:/opt/airflow/config
+    - airflow/plugins:/opt/airflow/
+  user: "${taito_host_user_uid:-50000}:0"
   depends_on:
     &airflow-common-depends-on
-    redis:
+    airflow-template-redis:
       condition: service_healthy
-    postgres:
+    airflow-template-database:
       condition: service_healthy
 
 services:
-  postgres:
+  airflow-template-database:
+    container_name: airflow-template-database
     image: postgres:13
+    networks:
+      - default
+    ports:
+      # WARNING: Do not ever remove the 127.0.0.1 as on some systems Docker host ports are exposed outside the Firewall!
+      - "127.0.0.1:6000:5432"
+    secrets:
+      - DATABASE_PASSWORD
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_DB: ${db_database_name}
+      POSTGRES_USER: ${db_database_app_username}
+      POSTGRES_PASSWORD_FILE: /run/secrets/DATABASE_PASSWORD
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]
+      test: ["CMD", "pg_isready", "-U", "${db_database_app_username}"]
       interval: 10s
       retries: 5
       start_period: 5s
     restart: always
 
-  redis:
+  airflow-template-redis:
+    container_name: airflow-template-redis
     # Redis is limited to 7.2-bookworm due to licencing change
     # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
-    image: redis:7.2-bookworm
+    image: bitnami/redis:7.2
+    networks:
+      - default
     expose:
       - 6379
     healthcheck:
@@ -114,12 +131,19 @@ services:
       retries: 50
       start_period: 30s
     restart: always
+    secrets:
+      - REDIS_PASSWORD
+    environment:
+      REDIS_PASSWORD_FILE: "/run/secrets/REDIS_PASSWORD"
+      REDIS_AOF_ENABLED: "no"
 
-  airflow-webserver:
+  airflow-template-airflow:
+    container_name: airflow-template-airflow
     <<: *airflow-common
     command: webserver
     ports:
-      - "8080:8080"
+      # WARNING: Do not ever remove the 127.0.0.1 as on some systems Docker host ports are exposed outside the Firewall!
+      - "127.0.0.1:9999:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
@@ -132,7 +156,8 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  airflow-scheduler:
+  airflow-template-scheduler:
+    container_name: airflow-template-scheduler
     <<: *airflow-common
     command: scheduler
     healthcheck:
@@ -147,7 +172,8 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  airflow-worker:
+  airflow-template-worker:
+    container_name: airflow-template-worker
     <<: *airflow-common
     command: celery worker
     healthcheck:
@@ -170,7 +196,8 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  airflow-triggerer:
+  airflow-template-triggerer:
+    container_name: airflow-template-triggerer
     <<: *airflow-common
     command: triggerer
     healthcheck:
@@ -185,18 +212,19 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  airflow-init:
+  airflow-template-init:
+    container_name: airflow-template-init
     <<: *airflow-common
     entrypoint: /bin/bash
     # yamllint disable rule:line-length
     command:
       - -c
       - |
-        if [[ -z "${AIRFLOW_UID}" ]]; then
+        if [[ -z "${taito_host_user_uid}" ]]; then
           echo
-          echo -e "\033[1;33mWARNING!!!: AIRFLOW_UID not set!\e[0m"
+          echo -e "\033[1;33mWARNING!!!: taito_host_user_uid not set!\e[0m"
           echo "If you are on Linux, you SHOULD follow the instructions below to set "
-          echo "AIRFLOW_UID environment variable, otherwise files will be owned by root."
+          echo "taito_host_user_uid environment variable, otherwise files will be owned by root."
           echo "For other operating systems you can get rid of the warning with manually created .env file:"
           echo "    See: https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html#setting-the-right-airflow-user"
           echo
@@ -235,7 +263,7 @@ services:
           echo
         fi
         mkdir -p /sources/logs /sources/dags /sources/plugins
-        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
+        chown -R "${taito_host_user_uid}:0" /sources/{logs,dags,plugins}
         exec /entrypoint airflow version
     # yamllint enable rule:line-length
     environment:
@@ -247,9 +275,10 @@ services:
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
     volumes:
-      - ${AIRFLOW_PROJ_DIR:-.}:/sources
+      - airflow:/sources
 
-  airflow-cli:
+  airflow-template-cli:
+    container_name: airflow-template-cli
     <<: *airflow-common
     profiles:
       - debug
@@ -265,13 +294,15 @@ services:
   # You can enable flower by adding "--profile flower" option e.g. docker-compose --profile flower up
   # or by explicitly targeted on the command line e.g. docker-compose up flower.
   # See: https://docs.docker.com/compose/profiles/
-  flower:
+  airflow-template-flower:
+    container_name: airflow-template-flower
     <<: *airflow-common
     command: celery flower
     profiles:
       - flower
     ports:
-      - "5555:5555"
+      # WARNING: Do not ever remove the 127.0.0.1 as on some systems Docker host ports are exposed outside the Firewall!
+      - "127.0.0.1:9998:5555"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
       interval: 30s
@@ -284,5 +315,14 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+secrets:
+  DATABASE_PASSWORD:
+    file: ./secrets/${taito_env}/${db_database_app_secret}
+  REDIS_PASSWORD:
+    file: ./secrets/${taito_env}/${taito_project}-${taito_env}-redis.password
+
 volumes:
   postgres-db-volume:
+
+networks:
+  default:
