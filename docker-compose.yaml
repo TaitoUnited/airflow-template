@@ -82,7 +82,7 @@ x-airflow-common:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/logs:/opt/airflow/logs
     - ./airflow/config:/opt/airflow/config
-    - ./airflow/plugins:/opt/airflow/
+    - ./airflow/plugins:/opt/airflow/plugins
   user: "${taito_host_user_uid:-50000}:0"
   depends_on:
     &airflow-common-depends-on
