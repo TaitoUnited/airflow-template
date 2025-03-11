@@ -61,8 +61,8 @@ x-airflow-common:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${db_database_app_username}:secret1234@airflow-template-database/${db_database_name}
-    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${db_database_app_username}:secret1234@airflow-template-database/airflow
-    AIRFLOW__CELERY__BROKER_URL: redis://:@airflow-template-redis:6379/0
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${db_database_app_username}:secret1234@airflow-template-database/${db_database_name}
+    AIRFLOW__CELERY__BROKER_URL: redis://:secret1234@airflow-template-redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
@@ -79,10 +79,10 @@ x-airflow-common:
     # If you want to use it, outcomment it and replace airflow.cfg with the name of your config file
     # AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
   volumes:
-    - airflow/dags:/opt/airflow/dags
-    - airflow/logs:/opt/airflow/logs
-    - airflow/config:/opt/airflow/config
-    - airflow/plugins:/opt/airflow/
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./airflow/config:/opt/airflow/config
+    - ./airflow/plugins:/opt/airflow/
   user: "${taito_host_user_uid:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -109,7 +109,7 @@ services:
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${db_database_app_username}"]
+      test: ["CMD", "pg_isready", "-U", "${db_database_app_username}", "-d", "${db_database_name}"]
       interval: 10s
       retries: 5
       start_period: 5s
@@ -153,7 +153,7 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      airflow-template-init:
         condition: service_completed_successfully
 
   airflow-template-scheduler:
@@ -169,7 +169,7 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      airflow-template-init:
         condition: service_completed_successfully
 
   airflow-template-worker:
@@ -193,7 +193,7 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      airflow-template-init:
         condition: service_completed_successfully
 
   airflow-template-triggerer:
@@ -209,7 +209,7 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      airflow-template-init:
         condition: service_completed_successfully
 
   airflow-template-init:
@@ -275,7 +275,7 @@ services:
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
     volumes:
-      - airflow:/sources
+      - ./airflow:/sources
 
   airflow-template-cli:
     container_name: airflow-template-cli
@@ -312,7 +312,7 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      airflow-template-init:
         condition: service_completed_successfully
 
 secrets:
