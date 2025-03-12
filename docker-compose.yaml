@@ -59,6 +59,7 @@ x-airflow-common:
     - default
   environment:
     &airflow-common-env
+    COMMON_ENV: local
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${db_database_app_username}:secret1234@airflow-template-database/${db_database_name}
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${db_database_app_username}:secret1234@airflow-template-database/${db_database_name}
