@@ -84,6 +84,7 @@ x-airflow-common:
     - ./airflow/logs:/opt/airflow/logs
     - ./airflow/config:/opt/airflow/config
     - ./airflow/plugins:/opt/airflow/plugins
+    - ./airflow/xcom:/opt/airflow/xcom
   user: "${taito_host_user_uid:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -263,8 +264,8 @@ services:
           echo "   https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html#before-you-begin"
           echo
         fi
-        mkdir -p /sources/logs /sources/dags /sources/plugins
-        chown -R "${taito_host_user_uid}:0" /sources/{logs,dags,plugins}
+        mkdir -p /sources/logs /sources/dags /sources/plugins /sources/xcom
+        chown -R "${taito_host_user_uid}:0" /sources/{logs,dags,plugins,xcom}
         exec /entrypoint airflow version
     # yamllint enable rule:line-length
     environment:
